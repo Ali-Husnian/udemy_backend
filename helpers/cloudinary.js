@@ -7,17 +7,34 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const uploadMediaToCloudinary = async (filePath) => {
-  try {
-    const result = await cloudinary.uploader.upload(filePath, {
-      resource_type: "auto",
-    });
+// const uploadMediaToCloudinary = async (filePath) => {
+//   try {
+//     const result = await cloudinary.uploader.upload(filePath, {
+//       resource_type: "auto",
+//     });
 
-    return result;
-  } catch (error) {
-    console.log(error);
-    throw new Error("Error uploading to cloudinary");
-  }
+//     return result;
+//   } catch (error) {
+//     console.log(error);
+//     throw new Error("Error uploading to cloudinary");
+//   }
+// };
+
+const uploadMediaToCloudinary = async (buffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: "auto" },
+      (error, result) => {
+        if (error) {
+          console.error("Cloudinary upload error:", error);
+          reject(new Error("Error uploading to Cloudinary"));
+        } else {
+          resolve(result);
+        }
+      }
+    );
+    stream.end(buffer); // Send the file buffer to Cloudinary
+  });
 };
 
 const deleteMediaFromCloudinary = async (publicId) => {

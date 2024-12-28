@@ -7,7 +7,9 @@ const {
 
 const router = express.Router();
 
-const upload = multer({ dest: "uploads/" });
+// Use memory storage to avoid writing to disk
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 router.post("/upload", upload.single("file"), async (req, res) => {
   try {
@@ -16,15 +18,16 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         .status(400)
         .json({ success: false, message: "No file uploaded" });
     }
+
     // Directly upload buffer to Cloudinary
-    const result = await uploadMediaToCloudinary(req.file.path);
+    const result = await uploadMediaToCloudinary(req.file.buffer);
+
     res.status(200).json({
       success: true,
       data: result,
     });
   } catch (e) {
-    console.log(e);
-
+    console.error(e);
     res.status(500).json({ success: false, message: "Error uploading file" });
   }
 });
@@ -36,7 +39,7 @@ router.delete("/delete/:id", async (req, res) => {
     if (!id) {
       return res.status(400).json({
         success: false,
-        message: "Assest Id is required",
+        message: "Asset ID is required",
       });
     }
 
@@ -44,19 +47,25 @@ router.delete("/delete/:id", async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Assest deleted successfully from cloudinary",
+      message: "Asset deleted successfully from Cloudinary",
     });
   } catch (e) {
-    console.log(e);
-
+    console.error(e);
     res.status(500).json({ success: false, message: "Error deleting file" });
   }
 });
 
 router.post("/bulk-upload", upload.array("files", 10), async (req, res) => {
   try {
+    if (!req.files || req.files.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No files uploaded" });
+    }
+
+    // Upload buffers directly to Cloudinary
     const uploadPromises = req.files.map((fileItem) =>
-      uploadMediaToCloudinary(fileItem.path)
+      uploadMediaToCloudinary(fileItem.buffer)
     );
 
     const results = await Promise.all(uploadPromises);
@@ -65,9 +74,8 @@ router.post("/bulk-upload", upload.array("files", 10), async (req, res) => {
       success: true,
       data: results,
     });
-  } catch (event) {
-    console.log(event);
-
+  } catch (e) {
+    console.error(e);
     res
       .status(500)
       .json({ success: false, message: "Error in bulk uploading files" });
